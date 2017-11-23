@@ -35,7 +35,9 @@
 // Gathers list of files which needs to be copied, removes redundancies, and performs copy
 class Collector {
   public:
-    void    add( const Template::Item *item, const GeneratorConditions &conditions );
+	Collector( const QString &cinderPath );
+	
+    void    add( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting );
   
 	void copyFileOrDir( QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents = false, const QString &replacePrefix = "",
 						bool windowsLineEndings = false );
@@ -45,13 +47,15 @@ class Collector {
 	void	print();
   protected:
 	struct Entry {
-		Entry( const Template::Item *item, const GeneratorConditions &initalConditions );
+		Entry( const Template::Item *item, const GeneratorConditions &initalConditions, const QString &outputDir, bool overwriteExisting );
 		const Template::Item					*mItem;
+		QString									mOutputDir;
 		std::vector<GeneratorConditions>		mConditions;
 	};
 	
 	Entry*		find( const Template::Item *item );
 	
+	QString					mCinderPath;
 	std::vector<Entry>		mEntries;
 };
 

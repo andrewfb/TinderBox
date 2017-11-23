@@ -48,10 +48,16 @@ bool executeGitCommand( const QStringList &params )
 	#endif
 }
 
+Collector::Collector( const QString &cinderPath )
+	: mCinderPath( cinderPath )
+{
+}
+
 void Collector::print()
 {
 	for( auto entryIt = mEntries.begin(); entryIt != mEntries.end(); ++entryIt ) {
 		std::cout << "Input Path: " << entryIt->mItem->getAbsoluteInputPath().toUtf8().constData() << std::endl;
+		std::cout << "Output Path: " << entryIt->mItem->getAbsoluteOutputPath( entryIt->mOutputDir, mCinderPath ).toUtf8().constData() << std::endl;
 		std::cout << "  Conditions: " << std::endl;
 		for( auto genCondIt = entryIt->mConditions.begin(); genCondIt != entryIt->mConditions.end(); ++genCondIt ) {
 			std::cout << "    {";
@@ -78,22 +84,23 @@ void Collector::copyFileOrDir( const GeneratorConditions &cond, QFileInfo src, Q
 Collector::Entry* Collector::find( const Template::Item *item )
 {
 	for( auto entryIt = mEntries.begin(); entryIt != mEntries.end(); ++entryIt )
-		return &*entryIt;
+		if( entryIt->mItem == item )
+			return &*entryIt;
 
 	return nullptr;
 }
 
-void Collector::add( const Template::Item *item, const GeneratorConditions &conditions )
+void Collector::add( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting )
 {
 	Entry *existing = find( item );
 	if( existing )
 		existing->mConditions.push_back( conditions );
 	else
-		mEntries.push_back( Entry ( item, conditions ) );
+		mEntries.push_back( Entry ( item, conditions, outputDir, overwriteExisting ) );
 }
 
-Collector::Entry::Entry( const Template::Item *item, const GeneratorConditions &conditions )
-	: mItem( item ), mConditions( { conditions } )
+Collector::Entry::Entry( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting )
+	: mItem( item ), mConditions( { conditions } ), mOutputDir( outputDir )
 {
 }
 
@@ -111,10 +118,10 @@ Instancer::Instancer( const ProjectTemplate &projectTmpl )
 
 void Instancer::instantiate( bool setupGit )
 {
-	Collector collector;
-
 	if( ! prepareGenerate() )
 		return;
+
+	Collector collector( getCinderAbsolutePath() );
 
 	vector<GeneratorConditions> copyConditions;
 	for( QList<GeneratorBaseRef>::Iterator childIt = mGenerators.begin(); childIt != mGenerators.end(); ++childIt ) {
@@ -129,28 +136,30 @@ void Instancer::instantiate( bool setupGit )
 
 	// set blocks' output and virtual paths
 	for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
+		QString outputPath = "";
 		if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_COPY ) {
-			const QString outputPath = getOutputDir().absolutePath() + "/blocks/" + (*blockIt)->getName();
-			(*blockIt)->setOutputPath( outputPath, getNamePrefix(), getCinderAbsolutePath() );
+			outputPath = getOutputDir().absolutePath() + "/blocks/" + (*blockIt)->getName();
+			//(*blockIt)->setOutputPath( outputPath, getNamePrefix(), getCinderAbsolutePath() );
 		}
 		else { // install type that doesn't require copying implies output is the same as input
-			(*blockIt)->setOutputPathToInput();
+			//(*blockIt)->setOutputPathToInput();
 		}		
 		
 		(*blockIt)->setupVirtualPaths( ("Blocks/" + (*blockIt)->getName()) );
+		(*blockIt)->collect( &collector, copyConditions, outputPath, false );
 	}
 	
 	// copy any cinderblocks' files
 	for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
-		if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_COPY )
-			(*blockIt)->instantiateFilesMatchingConditions( copyConditions, false, &collector );
+		//if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_COPY )
+			//(*blockIt)->instantiateFilesMatchingConditions( copyConditions, false, &collector );
 	}
 
     // get all files which match our generators as well as the empty set of conditions
-	mProjectTmpl.instantiateFilesMatchingConditions( copyConditions, false, &collector );
+	mProjectTmpl.collect( &collector, copyConditions, getOutputDir().absolutePath(), false );
 
 	if( mChildTemplate )
-		mChildTemplate->instantiateFilesMatchingConditions( copyConditions, true, &collector );
+		mChildTemplate->collect( &collector, copyConditions, getOutputDir().absolutePath(), true ); // overwrite existing to supersede the parent template
 
 	// bare files (<file> tags) are not the responsibility of the project generators, so the Instancer does them here
 	copyBareFiles( copyConditions, &collector );

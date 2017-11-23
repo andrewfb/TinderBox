@@ -50,6 +50,7 @@ class Template {
 		QString			getAbsoluteInputPath() const { return mInputAbsolutePath; }
 		QString			getRelativeInputPath() const { return mInputRelativePath; }
 		QString			getAbsoluteOutputPath() const;
+		QString			getAbsoluteOutputPath( const QString &outputPath, const QString &cinderPath ) const;
 		QString			getMacOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const {
 			return getOutputPathRelativeTo( relativeTo, cinderPath ); }
 		QString			getWinOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const {
@@ -213,7 +214,7 @@ class Template {
 	bool			supportsConditions( const GeneratorConditions &conditions ) const;
 	bool			isCore() const { return mCore; }
 
-	void			instantiateFilesMatchingConditions( const std::vector<GeneratorConditions> &conditionsList, bool overwriteExisting, Collector *cloner ) const;
+	void			collect( Collector *collector, const std::vector<GeneratorConditions> &conditionsList, const QString &outputDir, bool overwriteExisting ) const;
 	QList<File>		getFilesMatchingConditions( const std::vector<GeneratorConditions> &conditionsList ) const;
 	QList<File>		getFilesMatchingConditions( const GeneratorConditions &conditions ) const;
 

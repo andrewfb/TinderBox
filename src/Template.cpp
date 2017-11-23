@@ -92,6 +92,23 @@ QString	Template::Item::getAbsoluteOutputPath() const
 	return mOutputAbsolutePath;
 }
 
+QString Template::Item::getAbsoluteOutputPath( const QString &outputPath, const QString &cinderPath ) const
+{
+	if( outputPath.isEmpty() ) {
+		return mInputAbsolutePath;
+	}
+	else if( mOutputIsCinderRelative ) {
+		QDir cinder( cinderPath );
+		return cinder.filePath( mInputRelativePath );
+	}
+	else if( mOutputIsAbsolute || mOutputIsSdkRelative )
+		return mInputRelativePath;
+	else {
+		QDir dir( outputPath );
+		return dir.absoluteFilePath( mInputRelativePath );
+	}	
+}
+
 void Template::Item::setOutputPath( const QString &outputPath, const QString &/*replaceName*/, const QString &cinderPath )
 {
 	QString replacedName = mInputRelativePath;
@@ -499,13 +516,13 @@ bool Template::supportsConditions( const GeneratorConditions &conditions ) const
 	return false;
 }
 
-void Template::instantiateFilesMatchingConditions( const vector<GeneratorConditions> &conditionsList, bool overwriteExisting, Collector *cloner ) const
+void Template::collect( Collector *collector, const vector<GeneratorConditions> &conditionsList, const QString &outputDir, bool overwriteExisting ) const
 {
 	// files
 	for( QList<File>::ConstIterator fileIt = mFiles.begin(); fileIt != mFiles.end(); ++fileIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( fileIt->shouldCopy() && fileIt->conditionsMatch( *conditionsIt ) ) {
-				cloner->add( &*fileIt, *conditionsIt );
+				collector->add( &*fileIt, *conditionsIt, outputDir, overwriteExisting );
 //				cloner->copyFileOrDir( *conditionsIt, fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), overwriteExisting, fileIt->getReplaceContents(), mReplacementPrefix, false );
 			}
 		}
@@ -515,8 +532,8 @@ void Template::instantiateFilesMatchingConditions( const vector<GeneratorConditi
 	for( QList<IncludePath>::ConstIterator pathIt = mIncludePaths.begin(); pathIt != mIncludePaths.end(); ++pathIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( pathIt->shouldCopy() && pathIt->conditionsMatch( *conditionsIt ) ) {
-				cloner->copyFileOrDir( *conditionsIt, pathIt->getAbsoluteInputPath(), pathIt->getAbsoluteOutputPath(), overwriteExisting );
-				break;
+				collector->add( &*pathIt, *conditionsIt, outputDir, overwriteExisting );
+//				cloner->copyFileOrDir( *conditionsIt, pathIt->getAbsoluteInputPath(), pathIt->getAbsoluteOutputPath(), overwriteExisting );
 			}
 		}
 	}
@@ -525,8 +542,8 @@ void Template::instantiateFilesMatchingConditions( const vector<GeneratorConditi
 	for( QList<DynamicLibrary>::ConstIterator libIt = mDynamicLibraries.begin(); libIt != mDynamicLibraries.end(); ++libIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( libIt->shouldCopy() && libIt->conditionsMatch( *conditionsIt ) ) {
-				cloner->copyFileOrDir( *conditionsIt, libIt->getAbsoluteInputPath(), libIt->getAbsoluteOutputPath(), overwriteExisting );
-				break;
+				collector->add( &*libIt, *conditionsIt, outputDir, overwriteExisting );
+//				cloner->copyFileOrDir( *conditionsIt, libIt->getAbsoluteInputPath(), libIt->getAbsoluteOutputPath(), overwriteExisting );
 			}
 		}
 	}
@@ -535,8 +552,8 @@ void Template::instantiateFilesMatchingConditions( const vector<GeneratorConditi
 	for( QList<StaticLibrary>::ConstIterator libIt = mStaticLibraries.begin(); libIt != mStaticLibraries.end(); ++libIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( libIt->shouldCopy() && libIt->conditionsMatch( *conditionsIt ) ) {
-				cloner->copyFileOrDir( *conditionsIt, libIt->getAbsoluteInputPath(), libIt->getAbsoluteOutputPath(), overwriteExisting );
-				break;
+				collector->add( &*libIt, *conditionsIt, outputDir, overwriteExisting );
+//				cloner->copyFileOrDir( *conditionsIt, libIt->getAbsoluteInputPath(), libIt->getAbsoluteOutputPath(), overwriteExisting );
 			}
 		}
 	}
