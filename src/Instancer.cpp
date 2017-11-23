@@ -169,34 +169,8 @@ void Instancer::instantiate( bool setupGit )
 	copyAssets( copyConditions, &collector );
 
 	// setup git repo and possibly submodules
-	if( setupGit ) {
+	if( setupGit )
 		setupGitRepo( getOutputDir().absolutePath() );
-
-		// do the "git clone"/"git submodule add" dance for any appropriate submodules
-		for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
-			QDir::setCurrent( getOutputDir().absolutePath() );
-
-			if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_GIT_SUBMODULE ) {
-				const QString relativeOutputPath = QString::fromUtf8( "blocks" ) + QDir::separator() + (*blockIt)->getName();
-				const QString blockParentPath = QDir::toNativeSeparators( (*blockIt)->getParentPath() );
-				makePath( getOutputDir().absolutePath() + QDir::separator() + "blocks" ); // Windows needs this to already exist
-				if( ! executeGitCommand( QStringList() << "clone" << "--recursive" << blockParentPath << relativeOutputPath ) ) {
-					continue;
-				}
-				if( ! executeGitCommand( QStringList() << "submodule" << "add" << (*blockIt)->getGitUrl() << relativeOutputPath ) ) {
-					continue;
-				}
-				if( ! executeGitCommand( QStringList() << "commit" << "-m" << ("\"Adding " + (*blockIt)->getName() + " submodule\"") ) ) {
-					continue;
-				}
-				QDir::setCurrent( getOutputDir().absolutePath() + QDir::separator() + relativeOutputPath );
-				if( ! executeGitCommand( QStringList() << "remote" << "set-url" << "origin" << (*blockIt)->getGitUrl() ) ) {
-					continue;
-				}
-				(*blockIt)->setOutputPath( getOutputDir().absolutePath() + QDir::separator() + relativeOutputPath, getNamePrefix(), getCinderAbsolutePath() );
-			}
-		}
-	}
 
 	collector.print();
 
@@ -207,9 +181,8 @@ void Instancer::instantiate( bool setupGit )
 	// create Resources.h
 	writeResourcesHeader( copyConditions );
 
-	if( setupGit ) { // now add it all to the master
+	if( setupGit )
 		initialCommitToGitRepo( getOutputDir().absolutePath() );
-	}
 }
 
 void Instancer::copyBareFiles( const vector<GeneratorConditions> &conditions, Collector *collector ) const
@@ -534,7 +507,36 @@ bool Instancer::prepareGenerate()
 bool Instancer::setupGitRepo( const QString &dirPath )
 {
 	QDir::setCurrent( dirPath );
-	return executeGitCommand( QStringList() << "init" );
+	bool success = executeGitCommand( QStringList() << "init" );
+	if( ! success )
+		return false; // warning
+
+	// do the "git clone"/"git submodule add" dance for any appropriate submodules
+	for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
+		QDir::setCurrent( getOutputDir().absolutePath() );
+
+		if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_GIT_SUBMODULE ) {
+			const QString relativeOutputPath = QString::fromUtf8( "blocks" ) + QDir::separator() + (*blockIt)->getName();
+			const QString blockParentPath = QDir::toNativeSeparators( (*blockIt)->getParentPath() );
+			makePath( getOutputDir().absolutePath() + QDir::separator() + "blocks" ); // Windows needs this to already exist
+			if( ! executeGitCommand( QStringList() << "clone" << "--recursive" << blockParentPath << relativeOutputPath ) ) {
+				continue;
+			}
+			if( ! executeGitCommand( QStringList() << "submodule" << "add" << (*blockIt)->getGitUrl() << relativeOutputPath ) ) {
+				continue;
+			}
+			if( ! executeGitCommand( QStringList() << "commit" << "-m" << ("\"Adding " + (*blockIt)->getName() + " submodule\"") ) ) {
+				continue;
+			}
+			QDir::setCurrent( getOutputDir().absolutePath() + QDir::separator() + relativeOutputPath );
+			if( ! executeGitCommand( QStringList() << "remote" << "set-url" << "origin" << (*blockIt)->getGitUrl() ) ) {
+				continue;
+			}
+			(*blockIt)->setOutputPath( getOutputDir().absolutePath() + QDir::separator() + relativeOutputPath, getNamePrefix(), getCinderAbsolutePath() );
+		}
+	}
+	
+	return true;
 }
 
 bool Instancer::initialCommitToGitRepo( const QString &dirPath )
