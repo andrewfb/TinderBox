@@ -42,6 +42,8 @@ class GeneratorConditions {
 	// return value of "config" condition or empty string if not present
 	QString	getConfig() const;
 
+	const QMap<QString,QString>&   getConditions() const { return mConditions; }
+
   private:
 	// map from condition to value, such as "compiler" -> "vc2015"
 	QMap<QString,QString>   mConditions;

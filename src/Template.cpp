@@ -499,14 +499,14 @@ bool Template::supportsConditions( const GeneratorConditions &conditions ) const
 	return false;
 }
 
-void Template::instantiateFilesMatchingConditions( const vector<GeneratorConditions> &conditionsList, bool overwriteExisting, Cloner *cloner ) const
+void Template::instantiateFilesMatchingConditions( const vector<GeneratorConditions> &conditionsList, bool overwriteExisting, Collector *cloner ) const
 {
 	// files
 	for( QList<File>::ConstIterator fileIt = mFiles.begin(); fileIt != mFiles.end(); ++fileIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( fileIt->shouldCopy() && fileIt->conditionsMatch( *conditionsIt ) ) {
-				cloner->copyFileOrDir( *conditionsIt, fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), overwriteExisting, fileIt->getReplaceContents(), mReplacementPrefix, false );
-				break;
+				cloner->add( &*fileIt, *conditionsIt );
+//				cloner->copyFileOrDir( *conditionsIt, fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), overwriteExisting, fileIt->getReplaceContents(), mReplacementPrefix, false );
 			}
 		}
 	}

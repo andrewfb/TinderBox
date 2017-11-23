@@ -48,18 +48,57 @@ bool executeGitCommand( const QStringList &params )
 	#endif
 }
 
-void Cloner::copyFileOrDir( QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents, const QString &replacePrefix,
+void Collector::print()
+{
+	for( auto entryIt = mEntries.begin(); entryIt != mEntries.end(); ++entryIt ) {
+		std::cout << "Input Path: " << entryIt->mItem->getAbsoluteInputPath().toUtf8().constData() << std::endl;
+		std::cout << "  Conditions: " << std::endl;
+		for( auto genCondIt = entryIt->mConditions.begin(); genCondIt != entryIt->mConditions.end(); ++genCondIt ) {
+			std::cout << "    {";
+			for( auto condIt = genCondIt->getConditions().begin(); condIt != genCondIt->getConditions().end(); ++condIt )
+				std::cout << "[" << condIt.key().toUtf8().constData() << "=" << condIt.value().toUtf8().constData() << "]" << ", ";
+			std::cout << "}" << std::endl;
+		}
+		std::cout << std::endl;
+	}
+}
+
+void Collector::copyFileOrDir( QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents, const QString &replacePrefix,
 					bool windowsLineEndings )
 {
 	::copyFileOrDirHelper( src, dst, overwriteExisting, replaceContents, replacePrefix, "" /*replaceProjDir*/, windowsLineEndings );
 }
 
-void Cloner::copyFileOrDir( const GeneratorConditions &cond, QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents, const QString &replacePrefix,
+void Collector::copyFileOrDir( const GeneratorConditions &cond, QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents, const QString &replacePrefix,
 					bool windowsLineEndings )
 {
 	::copyFileOrDirHelper( src, dst, overwriteExisting, replaceContents, replacePrefix, "" /*replaceProjDir*/, windowsLineEndings );
 }
 
+Collector::Entry* Collector::find( const Template::Item *item )
+{
+	for( auto entryIt = mEntries.begin(); entryIt != mEntries.end(); ++entryIt )
+		return &*entryIt;
+
+	return nullptr;
+}
+
+void Collector::add( const Template::Item *item, const GeneratorConditions &conditions )
+{
+	Entry *existing = find( item );
+	if( existing )
+		existing->mConditions.push_back( conditions );
+	else
+		mEntries.push_back( Entry ( item, conditions ) );
+}
+
+Collector::Entry::Entry( const Template::Item *item, const GeneratorConditions &conditions )
+	: mItem( item ), mConditions( { conditions } )
+{
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Instancer
 Instancer::Instancer( const ProjectTemplate &projectTmpl )
 {
 	if( projectTmpl.hasParentProject() ) {
@@ -72,7 +111,7 @@ Instancer::Instancer( const ProjectTemplate &projectTmpl )
 
 void Instancer::instantiate( bool setupGit )
 {
-	Cloner cloner;
+	Collector collector;
 
 	if( ! prepareGenerate() )
 		return;
@@ -104,21 +143,21 @@ void Instancer::instantiate( bool setupGit )
 	// copy any cinderblocks' files
 	for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
 		if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_COPY )
-			(*blockIt)->instantiateFilesMatchingConditions( copyConditions, false, &cloner );
+			(*blockIt)->instantiateFilesMatchingConditions( copyConditions, false, &collector );
 	}
 
     // get all files which match our generators as well as the empty set of conditions
-	mProjectTmpl.instantiateFilesMatchingConditions( copyConditions, false, &cloner );
+	mProjectTmpl.instantiateFilesMatchingConditions( copyConditions, false, &collector );
 
 	if( mChildTemplate )
-		mChildTemplate->instantiateFilesMatchingConditions( copyConditions, true, &cloner );
+		mChildTemplate->instantiateFilesMatchingConditions( copyConditions, true, &collector );
 
 	// bare files (<file> tags) are not the responsibility of the project generators, so the Instancer does them here
-	copyBareFiles( copyConditions, &cloner );
+	copyBareFiles( copyConditions, &collector );
 
 	// assets are a special case; we have to copy them all locally since they can't be made relative to the project. Can only live in /assets/
 	// do this before we git add
-	copyAssets( copyConditions, &cloner );
+	copyAssets( copyConditions, &collector );
 
 	// setup git repo and possibly submodules
 	if( setupGit ) {
@@ -150,6 +189,8 @@ void Instancer::instantiate( bool setupGit )
 		}
 	}
 
+	collector.print();
+
 	// walk the children and generate with each generator
 	for( QList<GeneratorBaseRef>::Iterator childIt = mGenerators.begin(); childIt != mGenerators.end(); ++childIt )
 		(*childIt)->generate( this );
@@ -162,16 +203,16 @@ void Instancer::instantiate( bool setupGit )
 	}
 }
 
-void Instancer::copyBareFiles( const vector<GeneratorConditions> &conditions, Cloner *cloner ) const
+void Instancer::copyBareFiles( const vector<GeneratorConditions> &conditions, Collector *collector ) const
 {
 	QList<Template::File> files = getFileTypeMatchingConditions<Template::File::FILE>( conditions, true );
 
 	for( QList<Template::File>::Iterator fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
-		cloner->copyFileOrDir( fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), true, fileIt->getReplaceContents(), getNamePrefix() );
+		collector->copyFileOrDir( fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), true, fileIt->getReplaceContents(), getNamePrefix() );
 	}
 }
 
-void Instancer::copyAssets( const vector<GeneratorConditions> &conditions, Cloner *cloner ) const
+void Instancer::copyAssets( const vector<GeneratorConditions> &conditions, Collector *collector ) const
 {
 	// create the assets directory if necessary
 	QDir assetDirPath( getOutputDir().absolutePath() + "/assets/" );
@@ -186,7 +227,7 @@ void Instancer::copyAssets( const vector<GeneratorConditions> &conditions, Clone
 		QString relOutputPath = assetIt->getRelativeInputPath();
 		if( relOutputPath.indexOf( "assets/") == 0 )
 			relOutputPath = relOutputPath.mid( QString("assets/").length() );
-		cloner->copyFileOrDir( assetIt->getAbsoluteInputPath(), assetDirPath.absoluteFilePath( relOutputPath ), true, assetIt->getReplaceContents(), getNamePrefix() );
+		collector->copyFileOrDir( assetIt->getAbsoluteInputPath(), assetDirPath.absoluteFilePath( relOutputPath ), true, assetIt->getReplaceContents(), getNamePrefix() );
 	}
 }
 

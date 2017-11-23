@@ -33,12 +33,26 @@
 #include "ProjectTemplate.h"
 
 // Gathers list of files which needs to be copied, removes redundancies, and performs copy
-class Cloner {
+class Collector {
   public:
+    void    add( const Template::Item *item, const GeneratorConditions &conditions );
+  
 	void copyFileOrDir( QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents = false, const QString &replacePrefix = "",
 						bool windowsLineEndings = false );
 	void copyFileOrDir( const GeneratorConditions &conditions, QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents = false, const QString &replacePrefix = "",
 						bool windowsLineEndings = false );
+
+	void	print();
+  protected:
+	struct Entry {
+		Entry( const Template::Item *item, const GeneratorConditions &initalConditions );
+		const Template::Item					*mItem;
+		std::vector<GeneratorConditions>		mConditions;
+	};
+	
+	Entry*		find( const Template::Item *item );
+	
+	std::vector<Entry>		mEntries;
 };
 
 class Instancer {
@@ -86,8 +100,8 @@ class Instancer {
 
 	bool			prepareGenerate();
 	void			writeResourcesHeader( const std::vector<GeneratorConditions> &conditions ) const;
-	void			copyAssets( const std::vector<GeneratorConditions> &conditions, Cloner *cloner ) const;
-	void			copyBareFiles( const std::vector<GeneratorConditions> &conditions, Cloner *cloner ) const;
+	void			copyAssets( const std::vector<GeneratorConditions> &conditions, Collector *cloner ) const;
+	void			copyBareFiles( const std::vector<GeneratorConditions> &conditions, Collector *cloner ) const;
 	QString         getRelCinderPath( const QString &relativeTo ) const;
 	bool			setupGitRepo( const QString &dirPath );
 	bool			initialCommitToGitRepo( const QString &dirPath );

@@ -31,7 +31,7 @@
 #include "ErrorList.h"
 #include "GeneratorBase.h"
 
-class Cloner;
+class Collector;
 
 // Base class to both CinderBlock and ProjectTemplate
 class Template {
@@ -213,7 +213,7 @@ class Template {
 	bool			supportsConditions( const GeneratorConditions &conditions ) const;
 	bool			isCore() const { return mCore; }
 
-	void			instantiateFilesMatchingConditions( const std::vector<GeneratorConditions> &conditionsList, bool overwriteExisting, Cloner *cloner ) const;
+	void			instantiateFilesMatchingConditions( const std::vector<GeneratorConditions> &conditionsList, bool overwriteExisting, Collector *cloner ) const;
 	QList<File>		getFilesMatchingConditions( const std::vector<GeneratorConditions> &conditionsList ) const;
 	QList<File>		getFilesMatchingConditions( const GeneratorConditions &conditions ) const;
 
