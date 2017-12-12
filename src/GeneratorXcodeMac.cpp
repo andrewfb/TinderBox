@@ -36,6 +36,7 @@ GeneratorConditions	GeneratorXcodeMac::getBaseConditions() const
 	GeneratorConditions result;
 	result.setCondition( "compiler", "xcode" );
 	result.setCondition( "os", "macosx" );
+	result.setProjDir( "xcode" );
 	return result;
 }
 

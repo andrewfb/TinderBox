@@ -35,28 +35,35 @@
 // Gathers list of files which needs to be copied, removes redundancies, and performs copy
 class Collector {
   public:
-	Collector( const QString &cinderPath );
+	Collector( const QString &projectPefix, const QString &cinderPath );
 	
-    void    add( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting );
+	void    add( const Template::File &file, std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting );
+	void    add( const Template::IncludePath &includePath, std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting ) {}
+	void    add( const Template::StaticLibrary &lib, std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting ) {}
+	void    add( const Template::DynamicLibrary &lib, std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting ) {}
+//    void    add( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting );
+	//! Returns all Files which match any condition in \a conditions
+	std::vector<Template::File>	getFilesMatching( const std::vector<GeneratorConditions> &conditions ) const;
   
-	void copyFileOrDir( QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents = false, const QString &replacePrefix = "",
-						bool windowsLineEndings = false );
-	void copyFileOrDir( const GeneratorConditions &conditions, QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents = false, const QString &replacePrefix = "",
-						bool windowsLineEndings = false );
-
 	void	print();
+	void	cloneFiles(  const std::vector<GeneratorConditions> &conditions );
   protected:
+	template<typename T>
 	struct Entry {
-		Entry( const Template::Item *item, const GeneratorConditions &initalConditions, const QString &outputDir, bool overwriteExisting );
-		const Template::Item					*mItem;
-		QString									mOutputDir;
-		std::vector<GeneratorConditions>		mConditions;
+		Entry( const T &item, const std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting );
+		
+		bool	matches( const GeneratorConditions &conditions ) const;
+		
+		T									mItem;
+		QString								mOutputDir;
+		std::vector<GeneratorConditions>	mConditions;
 	};
 	
-	Entry*		find( const Template::Item *item );
+//	Entry*		find( const Template::Item *item );
 	
-	QString					mCinderPath;
-	std::vector<Entry>		mEntries;
+	QString								mProjectPrefix, mCinderPath;
+//	std::vector<Entry>		mEntries;
+	std::vector<Entry<Template::File>>	mFiles;
 };
 
 class Instancer {

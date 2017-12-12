@@ -33,7 +33,9 @@ GeneratorConditions GeneratorVc2015::getBaseConditions() const
 	QMap<QString,QString> conditions;
 	conditions["compiler"] = "vc2015";
 	conditions["os"] = "msw";
-	return GeneratorConditions( conditions );
+	auto result = GeneratorConditions( conditions );
+	result.setProjDir( "vc2015" );
+	return result;
 }
 
 VcProjRef GeneratorVc2015::createVcProj( const QString &VcProj, const QString &VcProjFilters )

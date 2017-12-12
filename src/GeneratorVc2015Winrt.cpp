@@ -33,7 +33,9 @@ GeneratorConditions GeneratorVc2015WinRt::getBaseConditions() const
 	QMap<QString,QString> conditions;
     conditions["compiler"] = "vc2015";
 	conditions["os"] = "winrt";
-	return GeneratorConditions( conditions );
+	auto result = GeneratorConditions( conditions );
+	result.setProjDir( "vc2015_uwp" );
+	return result;
 }
 
 VcProjRef GeneratorVc2015WinRt::createVcProj( const QString &VcProj, const QString &VcProjFilters )

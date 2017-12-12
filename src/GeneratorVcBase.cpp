@@ -66,7 +66,7 @@ void GeneratorVcBase::setupPreprocessorDefines( VcProjRef proj, Instancer *insta
 		proj->addPreprocessorDefine( config, defineIt->getValue() );
 }
 
-void GeneratorVcBase::generate( Instancer *instancer )
+void GeneratorVcBase::generate( Instancer *instancer, const Collector &collector )
 {
 	GeneratorConditions conditions = getBaseConditions();
 	QList<Template::File> files = instancer->getFilesMatchingConditions( conditions );

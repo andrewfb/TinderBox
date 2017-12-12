@@ -48,16 +48,31 @@ bool executeGitCommand( const QStringList &params )
 	#endif
 }
 
-Collector::Collector( const QString &cinderPath )
-	: mCinderPath( cinderPath )
+Collector::Collector( const QString &projectPrefix, const QString &cinderPath )
+	: mProjectPrefix( projectPrefix ), mCinderPath( cinderPath )
 {
+}
+
+template<typename T>
+Collector::Entry<T>::Entry( const T &item, const std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting )
+	: mItem( item ), mConditions( conditions ), mOutputDir( outputDir )
+{
+}
+
+template<typename T>
+bool Collector::Entry<T>::matches( const GeneratorConditions &conditions ) const
+{
+	for( auto &cond : mConditions )
+		if( cond.matches( conditions ) )
+			return true;
+	return false;
 }
 
 void Collector::print()
 {
-	for( auto entryIt = mEntries.begin(); entryIt != mEntries.end(); ++entryIt ) {
-		std::cout << "Input Path: " << entryIt->mItem->getAbsoluteInputPath().toUtf8().constData() << std::endl;
-		std::cout << "Output Path: " << entryIt->mItem->getAbsoluteOutputPath( entryIt->mOutputDir, mCinderPath ).toUtf8().constData() << std::endl;
+	for( auto entryIt = mFiles.begin(); entryIt != mFiles.end(); ++entryIt ) {
+		std::cout << "Input Path: " << entryIt->mItem.getAbsoluteInputPath().toUtf8().constData() << std::endl;
+		std::cout << "Output Path: " << entryIt->mItem.getAbsoluteOutputPath( entryIt->mOutputDir, mCinderPath ).toUtf8().constData() << std::endl;
 		std::cout << "  Conditions: " << std::endl;
 		for( auto genCondIt = entryIt->mConditions.begin(); genCondIt != entryIt->mConditions.end(); ++genCondIt ) {
 			std::cout << "    {";
@@ -69,39 +84,52 @@ void Collector::print()
 	}
 }
 
-void Collector::copyFileOrDir( QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents, const QString &replacePrefix,
-					bool windowsLineEndings )
+void Collector::add( const Template::File &file, std::vector<GeneratorConditions> &conditions, const QString &outputDir, bool overwriteExisting )
 {
-	::copyFileOrDirHelper( src, dst, overwriteExisting, replaceContents, replacePrefix, "" /*replaceProjDir*/, windowsLineEndings );
+	mFiles.push_back( Entry<Template::File>( file, conditions, outputDir, overwriteExisting ) );
 }
 
-void Collector::copyFileOrDir( const GeneratorConditions &cond, QFileInfo src, QFileInfo dst, bool overwriteExisting, bool replaceContents, const QString &replacePrefix,
-					bool windowsLineEndings )
+vector<Template::File> Collector::getFilesMatching( const std::vector<GeneratorConditions> &conditions ) const
 {
-	::copyFileOrDirHelper( src, dst, overwriteExisting, replaceContents, replacePrefix, "" /*replaceProjDir*/, windowsLineEndings );
+	vector<Template::File> result;
+	for( auto entryIt = mFiles.begin(); entryIt != mFiles.end(); ++entryIt ) {
+		for( auto condIt = conditions.begin(); condIt != conditions.end(); ++condIt ) {
+			if( entryIt->matches( *condIt ) ) {
+				result.push_back( entryIt->mItem );
+				result.back().setOutputPath( entryIt->mOutputDir, mProjectPrefix, mCinderPath, *condIt );
+				break;
+			}
+		}
+	}
+	
+	return result;
 }
 
-Collector::Entry* Collector::find( const Template::Item *item )
+void Collector::cloneFiles(  const std::vector<GeneratorConditions> &conditions )
 {
-	for( auto entryIt = mEntries.begin(); entryIt != mEntries.end(); ++entryIt )
-		if( entryIt->mItem == item )
-			return &*entryIt;
+	std::map<QString,QFileInfo> outputInput; // output path -> input path
 
-	return nullptr;
-}
-
-void Collector::add( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting )
-{
-	Entry *existing = find( item );
-	if( existing )
-		existing->mConditions.push_back( conditions );
-	else
-		mEntries.push_back( Entry ( item, conditions, outputDir, overwriteExisting ) );
-}
-
-Collector::Entry::Entry( const Template::Item *item, const GeneratorConditions &conditions, const QString &outputDir, bool overwriteExisting )
-	: mItem( item ), mConditions( { conditions } ), mOutputDir( outputDir )
-{
+	// iterate all files we've collected, against all generatorConditions. If a file matches conditions
+	// add an entry to out output -> input map. Keep in mind one input could give rise to multiple outputs
+	// due to rename variables
+	for( auto entryIt = mFiles.begin(); entryIt != mFiles.end(); ++entryIt ) {
+		for( auto condIt = conditions.begin(); condIt != conditions.end(); ++condIt ) {
+			if( entryIt->matches( *condIt ) ) {
+				auto file = entryIt->mItem;
+				if( file.isResourceHeader() ) // we don't clone Resources.h because it's generated directly
+					continue;
+				file.setOutputPath( entryIt->mOutputDir, mProjectPrefix, mCinderPath, *condIt );
+				QString outPath = QFileInfo(file.getAbsoluteOutputPath()).absoluteFilePath();
+				outputInput[outPath] = QFileInfo( file.getAbsoluteInputPath() );
+				//copyFileOrDirHelper( QFileInfo( file.getAbsoluteInputPath() ), QFileInfo( file.getAbsoluteOutputPath() ), true, true, mProjectPrefix, "", false );
+			}
+		}
+	}
+	
+	for( auto fileIt = outputInput.begin(); fileIt != outputInput.end(); ++fileIt ) {
+		std::cout << "---Copying " << fileIt->second.absoluteFilePath().toUtf8().constData() << " to " << fileIt->first.toUtf8().constData() << std::endl;
+		copyFileOrDirHelper( fileIt->second, fileIt->first, true, true, mProjectPrefix, "", false );
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,11 +149,13 @@ void Instancer::instantiate( bool setupGit )
 	if( ! prepareGenerate() )
 		return;
 
-	Collector collector( getCinderAbsolutePath() );
+	Collector collector( getNamePrefix(), getCinderAbsolutePath() );
 
 	vector<GeneratorConditions> copyConditions;
 	for( QList<GeneratorBaseRef>::Iterator childIt = mGenerators.begin(); childIt != mGenerators.end(); ++childIt ) {
 		auto childConds = (*childIt)->getConditions();
+		for( auto &childCond : childConds )
+			childCond.setProjDir( "proj/" + childCond.getProjDir() ); // prefix all projDirs with "proj/" - this may become a preference in the future
 		copyConditions.insert( copyConditions.end(), childConds.begin(), childConds.end() );
 	}
 
@@ -137,13 +167,8 @@ void Instancer::instantiate( bool setupGit )
 	// set blocks' output and virtual paths
 	for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
 		QString outputPath = "";
-		if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_COPY ) {
+		if( (*blockIt)->getInstallType() == CinderBlock::INSTALL_COPY )
 			outputPath = getOutputDir().absolutePath() + "/blocks/" + (*blockIt)->getName();
-			//(*blockIt)->setOutputPath( outputPath, getNamePrefix(), getCinderAbsolutePath() );
-		}
-		else { // install type that doesn't require copying implies output is the same as input
-			//(*blockIt)->setOutputPathToInput();
-		}		
 		
 		(*blockIt)->setupVirtualPaths( ("Blocks/" + (*blockIt)->getName()) );
 		(*blockIt)->collect( &collector, copyConditions, outputPath, false );
@@ -172,11 +197,14 @@ void Instancer::instantiate( bool setupGit )
 	if( setupGit )
 		setupGitRepo( getOutputDir().absolutePath() );
 
+	// "physically" copy the files gathered by Collector
+	collector.cloneFiles( copyConditions );
+
 	collector.print();
 
 	// walk the children and generate with each generator
 	for( QList<GeneratorBaseRef>::Iterator childIt = mGenerators.begin(); childIt != mGenerators.end(); ++childIt )
-		(*childIt)->generate( this );
+		(*childIt)->generate( this, collector );
 
 	// create Resources.h
 	writeResourcesHeader( copyConditions );
@@ -190,7 +218,7 @@ void Instancer::copyBareFiles( const vector<GeneratorConditions> &conditions, Co
 	QList<Template::File> files = getFileTypeMatchingConditions<Template::File::FILE>( conditions, true );
 
 	for( QList<Template::File>::Iterator fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
-		collector->copyFileOrDir( fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), true, fileIt->getReplaceContents(), getNamePrefix() );
+;//		collector->copyFileOrDir( fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), true, fileIt->getReplaceContents(), getNamePrefix() );
 	}
 }
 
@@ -209,7 +237,7 @@ void Instancer::copyAssets( const vector<GeneratorConditions> &conditions, Colle
 		QString relOutputPath = assetIt->getRelativeInputPath();
 		if( relOutputPath.indexOf( "assets/") == 0 )
 			relOutputPath = relOutputPath.mid( QString("assets/").length() );
-		collector->copyFileOrDir( assetIt->getAbsoluteInputPath(), assetDirPath.absoluteFilePath( relOutputPath ), true, assetIt->getReplaceContents(), getNamePrefix() );
+;//		collector->copyFileOrDir( assetIt->getAbsoluteInputPath(), assetDirPath.absoluteFilePath( relOutputPath ), true, assetIt->getReplaceContents(), getNamePrefix() );
 	}
 }
 

@@ -42,7 +42,7 @@ class GeneratorVcBase : public GeneratorBase {
 	virtual bool                                        getSlnDeploy() const = 0;
 	virtual bool                                        getUseRcFile() const = 0;
 
-	virtual void					generate( Instancer *instancer );
+	virtual void					generate( Instancer *instancer, const Collector &collector );
   protected:
 	virtual VcProjRef				createVcProj( const QString &vcProj, const QString &vcProjFilters ) = 0;
 

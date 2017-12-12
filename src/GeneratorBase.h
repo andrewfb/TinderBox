@@ -42,11 +42,16 @@ class GeneratorConditions {
 	// return value of "config" condition or empty string if not present
 	QString	getConfig() const;
 
+	QString		getProjDir() const { return mProjDir; }
+	void		setProjDir( const QString &projDir ) { mProjDir = projDir; }
+
 	const QMap<QString,QString>&   getConditions() const { return mConditions; }
 
   private:
 	// map from condition to value, such as "compiler" -> "vc2015"
 	QMap<QString,QString>   mConditions;
+	// relative directory of project, e.g. "proj/xcode"
+	QString					mProjDir;
 };
 
 class GeneratorBase {
@@ -55,7 +60,7 @@ class GeneratorBase {
 	virtual ~GeneratorBase() {}
 
 	virtual std::vector<GeneratorConditions> getConditions() const = 0;
-	virtual void    generate( class Instancer *master ) = 0;
+	virtual void    generate( class Instancer *master, const class Collector &collector ) = 0;
 };
 
 typedef QSharedPointer<GeneratorBase>	GeneratorBaseRef;

@@ -116,7 +116,7 @@ class Template {
 		// build-copy-specific
 		QString			getBuildCopyDestination() const { return mBuildCopyDestination; }
 
-		virtual void	setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath );
+		virtual void	setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath, const GeneratorConditions &conditions );
 		QString			getMacOutputPath( const QString &outputPath, const QString &replacePrefix, const QString &cinderPath ) const;
 
 	  protected:

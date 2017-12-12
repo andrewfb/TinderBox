@@ -222,13 +222,11 @@ void Template::File::setInputPath( const QString &parentPath, const QString &inp
 		mVirtualPath = "Cinder/" + mInputRelativePath;
 }
 
-void Template::File::setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath )
+void Template::File::setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath, const GeneratorConditions &conditions )
 {
 	QString replacedName = mInputRelativePath;
-	if( mReplaceName ) {
-		replacedName.replace( "_TBOX_PREFIX_", replaceName );
-//		replacedName.replace( "_TBOX_PROJECT_DIR_", replaceProjDir );
-	}
+	replacedName.replace( "_TBOX_PREFIX_", replaceName );
+	replacedName.replace( "_TBOX_PROJECT_DIR_", conditions.getProjDir() );
 
 	if( outputPath.isEmpty() ) {
 		mOutputAbsolutePath = mInputAbsolutePath;
@@ -469,7 +467,7 @@ void Template::setOutputPath( const QString &outputPath, const QString &replaceN
 	mReplacementPrefix = replaceName;
 	mCinderPath = cinderPath;
 	
-	for( QList<File>::Iterator it = mFiles.begin(); it != mFiles.end(); ++it )
+/*	for( QList<File>::Iterator it = mFiles.begin(); it != mFiles.end(); ++it )
 		it->setOutputPath( outputPath, replaceName, cinderPath );
 
 	for( QList<IncludePath>::Iterator it = mIncludePaths.begin(); it != mIncludePaths.end(); ++it )
@@ -485,7 +483,7 @@ void Template::setOutputPath( const QString &outputPath, const QString &replaceN
 		it->setOutputPath( outputPath, replaceName, cinderPath );
 
 	for( QList<DynamicLibrary>::Iterator it = mDynamicLibraries.begin(); it != mDynamicLibraries.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );
+		it->setOutputPath( outputPath, replaceName, cinderPath );*/
 }
 
 void Template::setupVirtualPaths( const QString &virtualPath )
@@ -520,19 +518,19 @@ void Template::collect( Collector *collector, const vector<GeneratorConditions> 
 {
 	// files
 	for( QList<File>::ConstIterator fileIt = mFiles.begin(); fileIt != mFiles.end(); ++fileIt ) {
-		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
-			if( fileIt->shouldCopy() && fileIt->conditionsMatch( *conditionsIt ) ) {
-				collector->add( &*fileIt, *conditionsIt, outputDir, overwriteExisting );
-//				cloner->copyFileOrDir( *conditionsIt, fileIt->getAbsoluteInputPath(), fileIt->getAbsoluteOutputPath(), overwriteExisting, fileIt->getReplaceContents(), mReplacementPrefix, false );
-			}
-		}
+		vector<GeneratorConditions> conditions;
+		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt )
+			if( fileIt->conditionsMatch( *conditionsIt ) )
+				conditions.push_back( *conditionsIt );
+		if( ! conditions.empty() )
+			collector->add( *fileIt, conditions, outputDir, overwriteExisting );
 	}
-
+#if 0
 	// include paths
 	for( QList<IncludePath>::ConstIterator pathIt = mIncludePaths.begin(); pathIt != mIncludePaths.end(); ++pathIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( pathIt->shouldCopy() && pathIt->conditionsMatch( *conditionsIt ) ) {
-				collector->add( &*pathIt, *conditionsIt, outputDir, overwriteExisting );
+				collector->add( *pathIt, *conditionsIt, outputDir, overwriteExisting );
 //				cloner->copyFileOrDir( *conditionsIt, pathIt->getAbsoluteInputPath(), pathIt->getAbsoluteOutputPath(), overwriteExisting );
 			}
 		}
@@ -542,7 +540,7 @@ void Template::collect( Collector *collector, const vector<GeneratorConditions> 
 	for( QList<DynamicLibrary>::ConstIterator libIt = mDynamicLibraries.begin(); libIt != mDynamicLibraries.end(); ++libIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( libIt->shouldCopy() && libIt->conditionsMatch( *conditionsIt ) ) {
-				collector->add( &*libIt, *conditionsIt, outputDir, overwriteExisting );
+				collector->add( *libIt, *conditionsIt, outputDir, overwriteExisting );
 //				cloner->copyFileOrDir( *conditionsIt, libIt->getAbsoluteInputPath(), libIt->getAbsoluteOutputPath(), overwriteExisting );
 			}
 		}
@@ -552,11 +550,12 @@ void Template::collect( Collector *collector, const vector<GeneratorConditions> 
 	for( QList<StaticLibrary>::ConstIterator libIt = mStaticLibraries.begin(); libIt != mStaticLibraries.end(); ++libIt ) {
 		for( auto conditionsIt = conditionsList.begin(); conditionsIt != conditionsList.end(); ++conditionsIt ) {
 			if( libIt->shouldCopy() && libIt->conditionsMatch( *conditionsIt ) ) {
-				collector->add( &*libIt, *conditionsIt, outputDir, overwriteExisting );
+				collector->add( *libIt, *conditionsIt, outputDir, overwriteExisting );
 //				cloner->copyFileOrDir( *conditionsIt, libIt->getAbsoluteInputPath(), libIt->getAbsoluteOutputPath(), overwriteExisting );
 			}
 		}
 	}
+#endif
 }
 
 QList<Template::File> Template::getFilesMatchingConditions( const GeneratorConditions &conditions ) const

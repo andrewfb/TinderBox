@@ -182,33 +182,33 @@ void GeneratorXcodeBase::setupOutputExtension( XCodeProjRef xcodeProj, Instancer
 	}
 }
 
-void GeneratorXcodeBase::generate( Instancer *master )
+void GeneratorXcodeBase::generate( Instancer *instancer, const Collector &collector )
 {
-	QList<Template::File> files = master->getFilesMatchingConditions( getBaseConditions() );
-
+	//QList<Template::File> files = instancer->getFilesMatchingConditions( getBaseConditions() );
 	vector<GeneratorConditions> conditions = getConditions();
+	vector<Template::File> files = collector.getFilesMatching( getConditions() );
 
 	// setup output paths of the project itself, and create its parent "xcode" directory
-    QString xcodeAbsPath = master->createDirectory( "proj/" + getRootFolderName() );
-    QString xcodeprojRelPath = xcodeAbsPath + '/' + master->getNamePrefix() + ".xcodeproj";
-    QString xcodeprojAbsPath = master->getAbsolutePath( xcodeprojRelPath );
-    QString cinderPath = master->getMacRelCinderPath( xcodeAbsPath );
-	master->createDirectory( xcodeprojRelPath );
+    QString xcodeAbsPath = instancer->createDirectory( "proj/" + getRootFolderName() );
+    QString xcodeprojRelPath = xcodeAbsPath + '/' + instancer->getNamePrefix() + ".xcodeproj";
+    QString xcodeprojAbsPath = instancer->getAbsolutePath( xcodeprojRelPath );
+    QString cinderPath = instancer->getMacRelCinderPath( xcodeAbsPath );
+	instancer->createDirectory( xcodeprojRelPath );
     QString replaced = loadAndStringReplace( ProjectTemplateManager::getFoundationPath( getRootFolderName() + "/project.pbxproj" ),
-            master->getNamePrefix(), cinderPath, xcodeAbsPath );
+            instancer->getNamePrefix(), cinderPath, xcodeAbsPath );
     XCodeProjRef xcodeProj = XCodeProj::createFromString( replaced );
 
 	// setup include paths
 	for( auto condIt = conditions.begin(); condIt != conditions.end(); ++condIt ) {
-		setupIncludePaths( xcodeProj, master, *condIt, xcodeAbsPath, cinderPath );
-		setupLibraryPaths( xcodeProj, master, *condIt, xcodeAbsPath, cinderPath );
-		setupFrameworkPaths( xcodeProj, master, *condIt, xcodeAbsPath, cinderPath );
-		setupStaticLibaries( xcodeProj, master, *condIt, xcodeAbsPath, cinderPath );
-		setupDynamicLibaries( xcodeProj, master, *condIt, xcodeAbsPath, cinderPath );
+		setupIncludePaths( xcodeProj, instancer, *condIt, xcodeAbsPath, cinderPath );
+		setupLibraryPaths( xcodeProj, instancer, *condIt, xcodeAbsPath, cinderPath );
+		setupFrameworkPaths( xcodeProj, instancer, *condIt, xcodeAbsPath, cinderPath );
+		setupStaticLibaries( xcodeProj, instancer, *condIt, xcodeAbsPath, cinderPath );
+		setupDynamicLibaries( xcodeProj, instancer, *condIt, xcodeAbsPath, cinderPath );
 	}
 	
 	// setup files
-    for( QList<Template::File>::ConstIterator fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
+    for( auto fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
 		if( fileIt->getType() == Template::File::SOURCE )
 			xcodeProj->addSourceFile( fileIt->getMacOutputPathRelativeTo( xcodeAbsPath, cinderPath ), fileIt->getVirtualPath(), fileIt->getCompileAs() );
 		else if( fileIt->getType() == Template::File::HEADER )
@@ -222,20 +222,20 @@ void GeneratorXcodeBase::generate( Instancer *master )
 	}
 
 	// we process buildCopy's last so that we can try to reuse an existing fileref
-	for( QList<Template::File>::ConstIterator fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
+	for( auto fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
 		if( fileIt->getType() == Template::File::BUILD_COPY )
 			xcodeProj->addBuildCopy( fileIt->getMacOutputPathRelativeTo( xcodeAbsPath, cinderPath ), fileIt->getVirtualPath(),
 									 fileIt->isOutputAbsolute(), fileIt->isOutputSdkRelative(), fileIt->getBuildCopyDestination() );
 	}
 
 	for( auto condIt = conditions.begin(); condIt != conditions.end(); ++condIt ) {
-		setupBuildSettings( xcodeProj, master, *condIt );
-		setupPreprocessorDefines( xcodeProj, master, *condIt );
-		setupOutputExtension( xcodeProj, master, *condIt );
+		setupBuildSettings( xcodeProj, instancer, *condIt );
+		setupPreprocessorDefines( xcodeProj, instancer, *condIt );
+		setupOutputExtension( xcodeProj, instancer, *condIt );
 	}
 
     // write to disk
-    QString pbxprojPath = master->getAbsolutePath( xcodeprojRelPath + "/project.pbxproj" );
+    QString pbxprojPath = instancer->getAbsolutePath( xcodeprojRelPath + "/project.pbxproj" );
     std::ofstream fs( pbxprojPath.toUtf8() );
     xcodeProj->print( fs );
 }
