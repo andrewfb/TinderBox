@@ -65,10 +65,8 @@ class Template {
 		// Should the instancer copy this file?
 		bool			shouldCopy() const { return ( ! mOutputIsAbsolute ) && ( ! mOutputIsCinderRelative ); }
 
-		virtual void	setOutputPath( const QString &outputPath, const QString &/*replaceName*/, const QString &cinderPath );
-
 		bool			operator==( const Item &rhs ) const { return
-			mInputRelativePath == rhs.mInputRelativePath && mInputAbsolutePath == rhs.mInputAbsolutePath &&
+			mInputRelativePath == rhs.mInputRelativePath && mInputAbsolutePath == rhs.mInputAbsolutePath && mCustomOutputPath == rhs.mCustomOutputPath &&
 			mOutputIsAbsolute == rhs.mOutputIsAbsolute && mOutputIsSdkRelative == rhs.mOutputIsSdkRelative
 			&& mOutputIsCinderRelative == rhs.mOutputIsCinderRelative && mBuildExclude == rhs.mBuildExclude; }
 
@@ -80,6 +78,7 @@ class Template {
 		GeneratorConditions			mConditions;
 		QString						mInputAbsolutePath;
 		QString						mInputRelativePath;
+		QString						mCustomOutputPath; // if non-empty, implies 'output' attribute which overrides
 		QString						mOutputAbsolutePath;
 		bool						mOutputIsAbsolute, mOutputIsSdkRelative, mOutputIsCinderRelative;
 		bool						mBuildExclude;
@@ -116,7 +115,7 @@ class Template {
 		// build-copy-specific
 		QString			getBuildCopyDestination() const { return mBuildCopyDestination; }
 
-		virtual void	setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath, const GeneratorConditions &conditions );
+		void			setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath, const GeneratorConditions &conditions );
 		QString			getMacOutputPath( const QString &outputPath, const QString &replacePrefix, const QString &cinderPath ) const;
 
 	  protected:
@@ -204,11 +203,6 @@ class Template {
 
 	const QList<QString>&	getRequires() const { return mRequires; }
 
-	// for copy submodule type
-	void			setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath );
-	// for relative/submodule type; output == input
-	void			setOutputPathToInput();
-	// prepends 'virtualPath' to all items' virtual paths
 	void			setupVirtualPaths( const QString &virtualPath );
 
 	bool			supportsConditions( const GeneratorConditions &conditions ) const;
@@ -227,7 +221,6 @@ class Template {
 	QList<PreprocessorDefine>	getPreprocessorDefinesMatchingConditions( const GeneratorConditions &conditions ) const;
 	QList<OutputExtension>	getOutputExtensionsMatchingConditions( const GeneratorConditions &conditions ) const;
 
-	QString			getOutputPath() const { return mOutputPath; }
 	QString			getParentPath() const { return mParentPath; }
 
   protected:
@@ -238,7 +231,6 @@ class Template {
 	void		parseSupports( const pugi::xml_node &node, ErrorList *errors );
 
 	QString					mParentPath;
-	QString					mOutputPath, mReplacementPrefix, mCinderPath;
 	
 	QString					mName, mId;
 	QList<File>				mFiles;

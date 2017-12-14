@@ -160,9 +160,9 @@ void Instancer::instantiate( bool setupGit )
 	}
 
 	// set template's output path
-	mProjectTmpl.setOutputPath( getOutputDir().absolutePath(), getNamePrefix(), getCinderAbsolutePath() );
-	if( mChildTemplate )
-		mChildTemplate->setOutputPath( getOutputDir().absolutePath(), getNamePrefix(), getCinderAbsolutePath() );
+//	mProjectTmpl.setOutputPath( getOutputDir().absolutePath(), getNamePrefix(), getCinderAbsolutePath() );
+//	if( mChildTemplate )
+//		mChildTemplate->setOutputPath( getOutputDir().absolutePath(), getNamePrefix(), getCinderAbsolutePath() );
 
 	// set blocks' output and virtual paths
 	for( QList<CinderBlockRef>::Iterator blockIt = mCinderBlocks.begin(); blockIt != mCinderBlocks.end(); ++blockIt ) {
@@ -560,7 +560,7 @@ bool Instancer::setupGitRepo( const QString &dirPath )
 			if( ! executeGitCommand( QStringList() << "remote" << "set-url" << "origin" << (*blockIt)->getGitUrl() ) ) {
 				continue;
 			}
-			(*blockIt)->setOutputPath( getOutputDir().absolutePath() + QDir::separator() + relativeOutputPath, getNamePrefix(), getCinderAbsolutePath() );
+//			(*blockIt)->setOutputPath( getOutputDir().absolutePath() + QDir::separator() + relativeOutputPath, getNamePrefix(), getCinderAbsolutePath() );
 		}
 	}
 	

@@ -109,25 +109,6 @@ QString Template::Item::getAbsoluteOutputPath( const QString &outputPath, const 
 	}	
 }
 
-void Template::Item::setOutputPath( const QString &outputPath, const QString &/*replaceName*/, const QString &cinderPath )
-{
-	QString replacedName = mInputRelativePath;
-
-	if( outputPath.isEmpty() ) {
-		mOutputAbsolutePath = mInputAbsolutePath;
-	}
-	else if( mOutputIsCinderRelative ) {
-		QDir cinder( cinderPath );
-		mOutputAbsolutePath = cinder.filePath( mInputRelativePath );
-	}
-	else if( mOutputIsAbsolute || mOutputIsSdkRelative )
-		mOutputAbsolutePath = mInputRelativePath;
-	else {
-		QDir dir( outputPath );
-		mOutputAbsolutePath = dir.absoluteFilePath( replacedName );
-	}	
-}
-
 QString Template::Item::getOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const
 {
 	if( mOutputIsCinderRelative ) {
@@ -181,6 +162,7 @@ Template::File::File( const QString &parentPath, const QString &inputPath, const
 	// resource-specific
 	mResourceName = QString::fromUtf8( dom.attribute("name").value() );
 	mResourceType = QString::fromUtf8( dom.attribute("type").value() );
+	mCustomOutputPath = QString::fromUtf8( dom.attribute("output").value() );
 	QString resourceIdString = QString::fromUtf8( dom.attribute("id").value() );
 	if( resourceIdString.isEmpty() || resourceIdString.toLower() == "auto" )
 		mResourceId = -1;
@@ -199,7 +181,7 @@ Template::File::File( const QString &parentPath, const QString &inputPath, const
 		mVirtualPath = "";
 	
 	QString tagName = QString::fromUtf8( dom.name() ).toLower();
-	testKnownAttributes( dom, Item::knownAttributes() << "replacecontents" << "replacename" << "compileas" << "ispch" << "isresourceheader" << "name" << "type" << "id" << "copy" << "destination", tagName, errors );
+	testKnownAttributes( dom, Item::knownAttributes() << "replacecontents" << "replacename" << "compileas" << "ispch" << "isresourceheader" << "name" << "type" << "id" << "copy" << "destination" << "output", tagName, errors );
 	if( ( mType != File::HEADER ) && mPch )
 		errors->addWarning( "Non-header marked as PCH \"" + inputPath + "\"." );
 	if( ( mType != File::BUILD_COPY ) && ( ! mBuildCopyDestination.isEmpty() ) )
@@ -224,9 +206,9 @@ void Template::File::setInputPath( const QString &parentPath, const QString &inp
 
 void Template::File::setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath, const GeneratorConditions &conditions )
 {
-	QString replacedName = mInputRelativePath;
-	replacedName.replace( "_TBOX_PREFIX_", replaceName );
-	replacedName.replace( "_TBOX_PROJECT_DIR_", conditions.getProjDir() );
+	QString replacedInputRelativePath = mCustomOutputPath.isEmpty() ? mInputRelativePath : mCustomOutputPath;
+	replacedInputRelativePath.replace( "_TBOX_PREFIX_", replaceName );
+	replacedInputRelativePath.replace( "_TBOX_PROJECT_DIR_", conditions.getProjDir() );
 
 	if( outputPath.isEmpty() ) {
 		mOutputAbsolutePath = mInputAbsolutePath;
@@ -235,11 +217,12 @@ void Template::File::setOutputPath( const QString &outputPath, const QString &re
 		QDir cinder( cinderPath );
 		mOutputAbsolutePath = cinder.filePath( mInputRelativePath );
 	}
-	else if( mOutputIsAbsolute || mOutputIsSdkRelative )
+	else if( mOutputIsAbsolute || mOutputIsSdkRelative ) {
 		mOutputAbsolutePath = mInputRelativePath;
+	}
 	else {
 		QDir dir( outputPath );
-		mOutputAbsolutePath = dir.absoluteFilePath( replacedName );
+		mOutputAbsolutePath = dir.absoluteFilePath( replacedInputRelativePath );
 	}
 }
 
@@ -454,36 +437,6 @@ void Template::parseSupports( const pugi::xml_node &node, ErrorList *errors )
 	testKnownAttributes( node, QStringList() << "os" << "compiler", "supports", errors );
 
 	mSupports.push_back( conditions );
-}
-
-void Template::setOutputPathToInput()
-{
-	setOutputPath( "", "", "" );
-}
-
-void Template::setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath )
-{
-	mOutputPath = outputPath;
-	mReplacementPrefix = replaceName;
-	mCinderPath = cinderPath;
-	
-/*	for( QList<File>::Iterator it = mFiles.begin(); it != mFiles.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );
-
-	for( QList<IncludePath>::Iterator it = mIncludePaths.begin(); it != mIncludePaths.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );
-
-	for( QList<LibraryPath>::Iterator it = mLibraryPaths.begin(); it != mLibraryPaths.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );
-
-	for( QList<FrameworkPath>::Iterator it = mFrameworkPaths.begin(); it != mFrameworkPaths.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );
-
-	for( QList<StaticLibrary>::Iterator it = mStaticLibraries.begin(); it != mStaticLibraries.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );
-
-	for( QList<DynamicLibrary>::Iterator it = mDynamicLibraries.begin(); it != mDynamicLibraries.end(); ++it )
-		it->setOutputPath( outputPath, replaceName, cinderPath );*/
 }
 
 void Template::setupVirtualPaths( const QString &virtualPath )
