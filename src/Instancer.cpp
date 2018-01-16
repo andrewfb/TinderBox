@@ -290,7 +290,7 @@ void Instancer::writeResourcesHeader( const vector<GeneratorConditions> &conditi
 		output += "\r\n";
 		if( ! fileIt->getResourceName().isEmpty() ) { // we don't add empty-named resources to the header
 			// the file path will be relative to the generator ie our_project/xcode, our_project/vc11, etc.
-			QFileInfo filePath( fileIt->getMacOutputPathRelativeTo( getOutputDir().absolutePath() + "/generator", getCinderAbsolutePath() ) );
+			QFileInfo filePath( fileIt->getMacOutputPathRelativeTo( getOutputDir().absolutePath() + "/generator" ) );
 			output += "#define " + fileIt->getResourceName() + "\t\tCINDER_RESOURCE( "
 						+ filePath.path() + "/" + ", " + filePath.fileName() + ", "
 						+ QString::number( fileIt->getResourceId() ) + ", " + fileIt->getResourceType() + " )";

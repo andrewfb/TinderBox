@@ -49,14 +49,14 @@ void GeneratorVcBase::setupIncludePaths( VcProjRef proj, Instancer *instancer, c
 {
 	QList<Template::IncludePath> includePaths = instancer->getIncludePathsMatchingConditions( config.getConditions() );
 	for( QList<Template::IncludePath>::ConstIterator pathIt = includePaths.begin(); pathIt != includePaths.end(); ++pathIt )
-		proj->addHeaderPath( config, pathIt->getWinOutputPathRelativeTo( absPath, cinderPath ) );
+		proj->addHeaderPath( config, pathIt->getWinOutputPathRelativeTo( absPath ) );
 }
 
 void GeneratorVcBase::setupLibraryPaths( VcProjRef proj, Instancer *instancer, const VcProj::ProjectConfiguration &config, const QString &absPath, const QString &cinderPath )
 {
 	QList<Template::LibraryPath> libraryPaths = instancer->getLibraryPathsMatchingConditions( config.getConditions() );
 	for( QList<Template::LibraryPath>::ConstIterator pathIt = libraryPaths.begin(); pathIt != libraryPaths.end(); ++pathIt )
-		proj->addLibraryPath( config, pathIt->getWinOutputPathRelativeTo( absPath, cinderPath ) );
+		proj->addLibraryPath( config, pathIt->getWinOutputPathRelativeTo( absPath ) );
 }
 
 void GeneratorVcBase::setupPreprocessorDefines( VcProjRef proj, Instancer *instancer, const VcProj::ProjectConfiguration &config )
@@ -73,7 +73,7 @@ void GeneratorVcBase::generate( Instancer *instancer, const Collector &collector
 
 	auto platformConfigurations = getPlatformConfigurations();
 
-	QString absDirPath = instancer->createDirectory( mFoundationName );
+	QString absDirPath = instancer->createDirectory( "proj/" + mFoundationName );
 	QString cinderPath = instancer->getWinRelCinderPath( absDirPath );
 
     // Load the foundation .vcxproj and .filters files as strings; replace _TBOX_CINDER_PATH_ appropriately
@@ -97,7 +97,7 @@ void GeneratorVcBase::generate( Instancer *instancer, const Collector &collector
 		// setup static libraries
 		QList<Template::StaticLibrary> staticLibraries = instancer->getStaticLibrariesMatchingConditions( config.getConditions() );
 		for( QList<Template::StaticLibrary>::ConstIterator pathIt = staticLibraries.begin(); pathIt != staticLibraries.end(); ++pathIt )
-			vcProj->addStaticLibrary( config, pathIt->getWinOutputPathRelativeTo( absDirPath, cinderPath ) );
+			vcProj->addStaticLibrary( config, pathIt->getWinOutputPathRelativeTo( absDirPath ) );
 	}
 
 	// There is nothing to do for Dynamic libraries in VC so just ignore them.
@@ -105,15 +105,15 @@ void GeneratorVcBase::generate( Instancer *instancer, const Collector &collector
 	// Iterate the Files.
 	for( QList<Template::File>::ConstIterator fileIt = files.begin(); fileIt != files.end(); ++fileIt ) {
 		if( fileIt->getType() == Template::File::SOURCE )
-			vcProj->addSourceFile( fileIt->getWinOutputPathRelativeTo( absDirPath, cinderPath ), fileIt->getVirtualPath() );
+			vcProj->addSourceFile( fileIt->getWinOutputPathRelativeTo( absDirPath ), fileIt->getVirtualPath() );
 		else if( fileIt->getType() == Template::File::HEADER )
-			vcProj->addHeaderFile( fileIt->getWinOutputPathRelativeTo( absDirPath, cinderPath ), fileIt->getVirtualPath(), fileIt->isResourceHeader() );
+			vcProj->addHeaderFile( fileIt->getWinOutputPathRelativeTo( absDirPath ), fileIt->getVirtualPath(), fileIt->isResourceHeader() );
 		else if( fileIt->getType() == Template::File::RESOURCE )
-			vcProj->addResourceFile( fileIt->getResourceName(), fileIt->getWinOutputPathRelativeTo( absDirPath, cinderPath ), fileIt->getResourceType(), fileIt->getResourceId() );
+			vcProj->addResourceFile( fileIt->getResourceName(), fileIt->getWinOutputPathRelativeTo( absDirPath ), fileIt->getResourceType(), fileIt->getResourceId() );
 		else if( fileIt->getType() == Template::File::BUILD_COPY ) {
 			for( const auto &config : platformConfigurations ) {
 				if( fileIt->conditionsMatch( config.getConditions() ) )
-					vcProj->addBuildCopy( config, fileIt->getWinOutputPathRelativeTo( absDirPath, cinderPath ) );
+					vcProj->addBuildCopy( config, fileIt->getWinOutputPathRelativeTo( absDirPath ) );
 			}
 		}
 	}

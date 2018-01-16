@@ -51,10 +51,10 @@ class Template {
 		QString			getRelativeInputPath() const { return mInputRelativePath; }
 		QString			getAbsoluteOutputPath() const;
 		QString			getAbsoluteOutputPath( const QString &outputPath, const QString &cinderPath ) const;
-		QString			getMacOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const {
-			return getOutputPathRelativeTo( relativeTo, cinderPath ); }
-		QString			getWinOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const {
-			return getOutputPathRelativeTo( relativeTo, cinderPath ).replace( "/", "\\" ); }
+		QString			getMacOutputPathRelativeTo( const QString &relativeTo ) const {
+			return getOutputPathRelativeTo( relativeTo ); }
+		QString			getWinOutputPathRelativeTo( const QString &relativeTo ) const {
+			return getOutputPathRelativeTo( relativeTo ).replace( "/", "\\" ); }
 
 		// Is output an absolute path? Always true if sdk-relative
 		bool			isOutputAbsolute() const { return mOutputIsAbsolute; }
@@ -73,7 +73,7 @@ class Template {
 		static QStringList	knownAttributes();
 
 	  protected:
-		QString			getOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const;
+		QString			getOutputPathRelativeTo( const QString &relativeTo ) const;
 
 		GeneratorConditions			mConditions;
 		QString						mInputAbsolutePath;
@@ -116,7 +116,6 @@ class Template {
 		QString			getBuildCopyDestination() const { return mBuildCopyDestination; }
 
 		void			setOutputPath( const QString &outputPath, const QString &replaceName, const QString &cinderPath, const GeneratorConditions &conditions );
-		QString			getMacOutputPath( const QString &outputPath, const QString &replacePrefix, const QString &cinderPath ) const;
 
 	  protected:
 		Type			mType;	  

@@ -109,18 +109,10 @@ QString Template::Item::getAbsoluteOutputPath( const QString &outputPath, const 
 	}	
 }
 
-QString Template::Item::getOutputPathRelativeTo( const QString &relativeTo, const QString &cinderPath ) const
+QString Template::Item::getOutputPathRelativeTo( const QString &relativeTo ) const
 {
-	if( mOutputIsCinderRelative ) {
-		QDir cinder( cinderPath );
-		return cinder.filePath( mInputRelativePath );
-	}
-	else if( mOutputIsAbsolute || mOutputIsSdkRelative )
-		return mInputRelativePath;
-	else {
-		QDir dir( relativeTo );
-		return dir.relativeFilePath( mOutputAbsolutePath );
-	}
+	QDir dir( relativeTo );
+	return dir.relativeFilePath( getAbsoluteOutputPath() );
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -223,26 +215,6 @@ void Template::File::setOutputPath( const QString &outputPath, const QString &re
 	else {
 		QDir dir( outputPath );
 		mOutputAbsolutePath = dir.absoluteFilePath( replacedInputRelativePath );
-	}
-}
-
-QString	Template::File::getMacOutputPath( const QString &outputPath, const QString &replacePrefix, const QString &cinderPath ) const
-{
-	QString replacedName = mInputRelativePath;
-	if( mReplaceName ) {
-		replacedName.replace( "_TBOX_PREFIX_", replacePrefix );
-//		replacedName.replace( "_TBOX_PROJECT_DIR_", replaceProjDir );
-	}
-
-	if( mOutputIsCinderRelative ) {
-		QDir cinder( cinderPath );
-		return cinder.filePath( replacedName );
-	}
-	else if( mOutputIsAbsolute || mOutputIsSdkRelative )
-		return replacedName;
-	else {
-		QDir dir( outputPath );
-		return dir.absoluteFilePath( replacedName );
 	}
 }
 
